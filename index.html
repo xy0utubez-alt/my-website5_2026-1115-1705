@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="マイページ">
+<meta name="theme-color" content="#eceff3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1420" media="(prefers-color-scheme: dark)">
+<title>マイページ</title>
+<style>
+:root{
+  --bg:#eceff3; --card:#fbfcfd; --ink:#16213a; --sub:#5a6578; --line:#d3d9e2;
+  --accent:#2f5bd8; --accent-ink:#fff; --danger:#c8372d; --sat:#2f5bd8; --sun:#c8372d; --hover:#e4e9f1;
+  --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f1420; --card:#171e2e; --ink:#e6ebf5; --sub:#98a3b8; --line:#2b3550;
+        --accent:#7aa2ff; --accent-ink:#0f1420; --danger:#ff7a70; --sat:#7aa2ff; --sun:#ff7a70; --hover:#1f2840}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--font);-webkit-text-size-adjust:100%;overscroll-behavior:none}
+[hidden]{display:none!important}
+button,input,textarea{font:inherit;color:inherit}
+button{touch-action:manipulation}
+input,textarea{font-size:16px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-height:44px;outline:none;-webkit-appearance:none;appearance:none}
+input[type=date],input[type=time]{min-width:0;display:block}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{min-height:44px;min-width:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+.btn:hover{background:var(--hover)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.danger{color:var(--danger)}
+.btn[disabled]{opacity:.5;cursor:default}
+.muted{color:var(--sub);font-size:14px}
+
+/* ログイン */
+.auth{min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left))}
+.auth form{width:100%;max-width:380px;display:grid;gap:12px}
+.auth h1{margin:0 0 4px;font-size:26px;letter-spacing:.02em}
+.msg{min-height:1.5em;font-size:14px;color:var(--danger);margin:0}
+.msg.ok{color:var(--sub)}
+.conn{margin:0;font-size:13px;line-height:1.5;display:flex;gap:8px;align-items:flex-start;color:var(--sub);cursor:pointer}
+.conn::before{content:"";width:10px;height:10px;border-radius:50%;margin-top:5px;flex:none;background:var(--sub)}
+.conn.ok::before{background:#2e9e5b}
+.conn.bad{color:var(--danger)}
+.conn.bad::before{background:var(--danger)}
+
+/* 全体 */
+#app{height:100dvh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"head" "main" "nav";
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+header{grid-area:head;display:flex;align-items:center;gap:12px;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;border-bottom:1px solid var(--line);background:var(--card)}
+header h1{margin:0;font-size:18px;flex:1}
+.status{font-size:13px;color:var(--sub)}
+.status.err{color:var(--danger)}
+nav{grid-area:nav;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;min-width:0;min-height:52px;border:0;background:none;cursor:pointer;color:var(--sub);font-size:11.5px;padding:0 1px;white-space:nowrap}
+nav button[aria-current="true"]{color:var(--accent);font-weight:700;box-shadow:inset 0 3px 0 var(--accent)}
+main{grid-area:main;min-height:0;position:relative}
+main>section{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch}
+#v-notes,#v-files,#v-py{overflow:hidden}
+@media (min-width:768px){
+  #app{grid-template-columns:180px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"head head" "nav main"}
+  header{padding-top:12px}
+  nav{flex-direction:column;border-top:0;border-right:1px solid var(--line);padding:8px 0}
+  nav button{flex:none;text-align:left;padding:0 20px;min-height:48px;font-size:14px}
+  nav button[aria-current="true"]{box-shadow:inset 3px 0 0 var(--accent)}
+}
+
+/* 一覧+詳細(メモ・ファイル共通) */
+.split{display:grid;grid-template-columns:minmax(0,1fr);height:100%}
+.pl,.pd{min-height:0;display:flex;flex-direction:column}
+.pd{display:none;padding:12px 16px;gap:10px;background:var(--card);overflow:auto;-webkit-overflow-scrolling:touch}
+.split.open .pl{display:none}
+.split.open .pd{display:flex}
+.bar{display:flex;gap:8px;padding:12px 16px}
+.items{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:0 16px 16px;display:grid;gap:6px;align-content:start}
+.item{text-align:left;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:10px 12px;cursor:pointer;display:block;width:100%;min-height:44px}
+.item[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item span{display:block;font-size:13px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pd .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pd .title{font-weight:700;font-size:18px}
+.pd textarea{flex:1;min-height:50vh;resize:none;line-height:1.7}
+.back{display:inline-flex;align-items:center;justify-content:center}
+.empty{margin:auto;color:var(--sub);text-align:center;padding:24px}
+@media (min-width:768px){
+  .split{grid-template-columns:320px minmax(0,1fr)}
+  .pl{border-right:1px solid var(--line)}
+  .pd{display:flex!important}
+  .split.open .pl{display:flex}
+  .back{display:none}
+  .pd textarea{min-height:0}
+}
+
+/* ファイル */
+.pv{display:grid;gap:10px}
+.pv img,.pv video{max-width:100%;max-height:70vh;border-radius:8px;background:var(--bg)}
+.pv audio{width:100%}
+.pv iframe{width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff}
+.pv pre{margin:0;white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto;background:var(--bg);padding:12px;border-radius:8px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.drop{outline:2px dashed var(--accent);outline-offset:-8px}
+
+/* カレンダー */
+.cal{display:grid;gap:16px;padding:16px;grid-template-columns:minmax(0,1fr);align-content:start}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.cal-head h2{margin:0;font-size:20px;flex:1;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.dow{text-align:center;font-size:13px;color:var(--sub);padding:4px 0}
+.dow:first-child,.day.sun{color:var(--sun)}
+.dow:nth-child(7),.day.sat{color:var(--sat)}
+.day{aspect-ratio:1/1;min-height:44px;border:1px solid transparent;border-radius:8px;background:var(--card);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:2px}
+.day.blank{background:none;cursor:default}
+.day.today{border-color:var(--accent);font-weight:700}
+.day.sel{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.dots{display:flex;gap:3px;height:6px}
+.dots i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;align-content:start}
+.panel h3{margin:0;font-size:17px}
+.evrow{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:8px 0;cursor:pointer;min-height:44px}
+.evrow .t{display:block;color:var(--sub);font-size:13px}
+.evrow .n{display:block;word-break:break-word;font-weight:600}
+.evrow .m{display:block;color:var(--sub);font-size:13px;white-space:pre-wrap;word-break:break-word;max-height:3.2em;overflow:hidden}
+.form{display:grid;gap:10px}
+.fgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.fld{display:grid;gap:4px;font-size:13px;color:var(--sub);min-width:0}
+.form textarea{resize:vertical;line-height:1.6}
+.frow{display:flex;gap:8px;flex-wrap:wrap}
+.frow .btn{flex:1}
+@media (min-width:768px){.cal{grid-template-columns:minmax(0,1fr) 360px;max-width:1100px}}
+
+/* 電卓 */
+.calc{max-width:380px;margin:0 auto;padding:16px;display:grid;gap:12px}
+.cdisp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;text-align:right;min-height:96px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.cexpr{color:var(--sub);font-size:15px;min-height:1.5em;word-break:break-all}
+.cres{font-size:36px;font-weight:600;line-height:1.2;word-break:break-all;font-variant-numeric:tabular-nums}
+.ckeys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ck{min-height:60px;font-size:22px;border-radius:12px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+.ck:active{background:var(--hover)}
+.ck.op{color:var(--accent);font-weight:700}
+.ck.fn{color:var(--sub);font-size:18px}
+.ck.eq{grid-column:1/-1;background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+
+/* ブックマーク */
+.bm{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:12px;align-content:start}
+.bm h3{margin:8px 0 0;font-size:14px;color:var(--sub);font-weight:600}
+.bmi{display:flex;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 6px 6px 12px;margin-top:6px}
+.bml{flex:1;min-width:0;color:inherit;text-decoration:none;display:block;padding:4px 0}
+.bml b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bml span{display:block;font-size:13px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 認証タブ */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--hover);padding:4px;border-radius:10px}
+.seg button{min-height:40px;border:0;border-radius:8px;background:none;cursor:pointer;color:var(--sub);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+
+/* アバター・アカウント */
+.avatar{width:40px;height:40px;min-width:40px;border-radius:50%;border:1px solid var(--line);background:var(--accent);color:var(--accent-ink);display:inline-grid;place-items:center;font-weight:700;overflow:hidden;padding:0;cursor:pointer;flex:none}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar.big{width:88px;height:88px;font-size:32px;cursor:default}
+.acct{max-width:560px;margin:0 auto;padding:16px;display:grid;gap:16px;align-content:start}
+.acct .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+
+/* Pythonアプリ */
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--sub);margin-right:6px}
+.dot.on{background:#2e9e5b}
+.frame{width:100%;height:65vh;border:1px solid var(--line);border-radius:8px;background:#fff}
+details.agent{border:1px solid var(--line);border-radius:8px;padding:4px 12px}
+details.agent summary{cursor:pointer;min-height:40px;display:flex;align-items:center;color:var(--sub);font-size:14px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<div id="auth" class="auth" hidden>
+  <form id="authForm">
+    <h1>マイページ</h1>
+    <p id="conn" class="conn" role="status" title="タップで再確認"></p>
+    <div class="seg" role="group" aria-label="ログインか新規登録か">
+      <button type="button" id="tabLogin" aria-pressed="true">ログイン</button>
+      <button type="button" id="tabSignup" aria-pressed="false">新規登録</button>
+    </div>
+    <input id="em" name="email" type="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" placeholder="メールアドレス" required>
+    <input id="un" name="nickname" autocomplete="nickname" placeholder="ユーザー名" hidden>
+    <input id="p" name="password" type="password" autocomplete="current-password" placeholder="パスワード" required>
+    <input id="p2" type="password" autocomplete="new-password" placeholder="パスワード(確認)" hidden>
+    <p id="authMsg" class="msg" role="alert"></p>
+    <button id="authBtn" class="btn primary" type="submit">ログイン</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <h1 id="pageTitle">メモ</h1>
+    <span id="status" class="status" role="status"></span>
+    <button id="avatarBtn" class="avatar" type="button" aria-label="アカウント設定"></button>
+    <button id="logoutBtn" class="btn" type="button">ログアウト</button>
+  </header>
+  <nav id="nav" aria-label="メニュー">
+    <button data-v="notes" aria-current="true">メモ</button>
+    <button data-v="cal">予定</button>
+    <button data-v="files">ファイル</button>
+    <button data-v="calc">電卓</button>
+    <button data-v="bm">リンク</button>
+    <button data-v="py">アプリ</button>
+  </nav>
+  <main>
+    <section id="v-notes"></section>
+    <section id="v-cal" hidden></section>
+    <section id="v-files" hidden></section>
+    <section id="v-calc" hidden></section>
+    <section id="v-bm" hidden></section>
+    <section id="v-py" hidden></section>
+    <section id="v-account" hidden></section>
+  </main>
+</div>
+
+<script>
+"use strict";
+/* ============ 設定(ここだけ書き換える) ============ */
+const SUPABASE_URL = "https://vbufowedksgbsafjoriq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_U7pk6AmmOBXxKBFZq2ejCA_omxK8KX3";
+/* ================================================= */
+
+const $ = s => document.querySelector(s);
+const configured = !SUPABASE_URL.includes("YOUR-PROJECT") && !SUPABASE_KEY.startsWith("YOUR-");
+const libOk = typeof supabase !== "undefined";
+const sb = configured && libOk ? supabase.createClient(SUPABASE_URL.trim(), SUPABASE_KEY.trim()) : null;
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==="x"?r:(r&3|8)).toString(16) }));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const fmt = t => new Date(t).toLocaleString("ja-JP", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+const fmtSize = n => n < 1048576 ? Math.max(1, Math.round(n/1024)) + "KB" : (n/1048576).toFixed(1) + "MB";
+const SQL_HINT = "SQLの更新が必要です(supabase-update.sql / supabase-update-2.sql)";
+const needsSql = err => /column|relation|schema cache|does not exist/i.test((err && err.message) || "");
+
+function h(tag, props = {}, ...kids){
+  const e = document.createElement(tag);
+  for(const [k,v] of Object.entries(props)){
+    if(k==="class") e.className = v;
+    else if(k==="value") e.value = v;
+    else if(k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if(v===true) e.setAttribute(k,"");
+    else if(v!==false && v!=null) e.setAttribute(k,v);
+  }
+  for(const c of kids.flat()) if(c!=null) e.append(c);
+  return e;
+}
+function setStatus(t, err){ const s=$("#status"); s.textContent=t; s.className="status"+(err?" err":"") }
+
+/* ============ 状態 ============ */
+let user = null, view = "notes";
+const emptyState = () => ({ notes:[], events:[], files:[], bookmarks:[], pyapps:[], profile:{ username:"", avatar:"" } });
+let state = emptyState();
+let curNote = null, q = "", selFile = null;
+let cal = (()=>{ const d=new Date(); d.setDate(1); return d })();
+let sel = ymd(new Date());
+let evEdit = null;          // null | "new" | 予定のid
+let bmEdit = null, bmQ = ""; // null | "new" | ブックマークのid
+const dirty = new Set(), saveT = {};
+let loading = false, again = false, poll = null, chan = null, reloadT = null;
+
+/* ============ 認証(ログイン / 新規登録) ============ */
+let mode = "login", signupOpen = null;
+function setMode(m){
+  mode = m;
+  const su = m === "signup";
+  $("#tabLogin").setAttribute("aria-pressed", String(!su));
+  $("#tabSignup").setAttribute("aria-pressed", String(su));
+  $("#un").hidden = !su; $("#p2").hidden = !su;
+  $("#un").required = su; $("#p2").required = su;
+  $("#p").autocomplete = su ? "new-password" : "current-password";
+  $("#em").autocomplete = su ? "email" : "username";
+  $("#authBtn").textContent = su ? "登録する" : "ログイン";
+  $("#authBtn").disabled = su && signupOpen === false;
+  msg(su && signupOpen === false ? "現在、新規登録は受け付けていません。" : "");
+}
+$("#tabLogin").addEventListener("click", () => setMode("login"));
+$("#tabSignup").addEventListener("click", () => setMode("signup"));
+
+function showAuth(){
+  $("#app").hidden = true; $("#auth").hidden = false;
+  for(const id of ["#em","#un","#p","#p2"]) $(id).value = "";
+  setMode("login"); checkConn();
+}
+function msg(t, ok){ const m=$("#authMsg"); m.textContent=t; m.className="msg"+(ok?" ok":"") }
+
+/* 接続状態の表示 */
+function setConn(kind, text){ const c=$("#conn"); c.className="conn"+(kind==="ok"?" ok":kind==="bad"?" bad":""); c.textContent=text }
+async function checkConn(){
+  if(!configured){ setConn("bad","未設定: index.html の SUPABASE_URL と SUPABASE_KEY を書き換えてください。"); return }
+  if(!libOk){ setConn("bad","接続NG: Supabase のライブラリを読み込めません。ネット接続や広告ブロックを確認してください。"); return }
+  setConn("wait","Supabase に接続を確認中…");
+  try{
+    const base = SUPABASE_URL.trim().replace(/\/+$/,"");
+    const r = await fetch(base + "/auth/v1/settings", { headers:{ apikey:SUPABASE_KEY.trim() } });
+    if(r.ok){
+      const j = await r.json().catch(() => ({}));
+      if(typeof j.disable_signup === "boolean") signupOpen = !j.disable_signup;
+      setConn("ok", "Supabase に接続できています" + (signupOpen === false ? "(新規登録は停止中)" : ""));
+      if(mode === "signup") setMode("signup");
+    }
+    else if(r.status===401 || r.status===403) setConn("bad", `接続NG: キー(SUPABASE_KEY)が正しくありません (HTTP ${r.status})`);
+    else setConn("bad", `接続NG: HTTP ${r.status}。SUPABASE_URL が「https://xxxx.supabase.co」の形か確認してください。`);
+  }catch{
+    setConn("bad","接続NG: サーバーに届きません。SUPABASE_URL の綴り、ネット接続、プロジェクトの一時停止を確認してください。");
+  }
+}
+$("#conn").addEventListener("click", checkConn);
+
+function loginErrorText(err, email){
+  const m = (err.message || "").toLowerCase();
+  if(err.status===0 || err.name==="AuthRetryableFetchError" || /fetch|network/.test(m))
+    return "Supabase に接続できません。上の接続表示を確認してください。";
+  if(m.includes("email not confirmed"))
+    return "メールアドレスの確認が済んでいません。届いた確認メールのリンクを開いてください。";
+  if(m.includes("invalid login credentials"))
+    return `メールアドレスまたはパスワードが違います(入力したメールアドレス: ${email})。`;
+  return "ログインに失敗しました: " + err.message;
+}
+function signupErrorText(err){
+  const m = (err.message || "").toLowerCase();
+  if(err.status===0 || /fetch|network/.test(m)) return "Supabase に接続できません。上の接続表示を確認してください。";
+  if(/not allowed|disabled/.test(m)) return "現在、新規登録は受け付けていません。";
+  if(m.includes("already registered")) return "このメールアドレスは登録済みです。ログインしてください。";
+  if(m.includes("rate limit")) return "短時間に送信しすぎです。しばらくしてからもう一度お試しください。";
+  if(m.includes("email") && m.includes("invalid")) return "メールアドレスの形式が正しくありません。";
+  if(m.includes("password")) return "パスワードの条件を満たしていません: " + err.message;
+  return "登録に失敗しました: " + err.message;
+}
+
+$("#authForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if(!sb){ msg("Supabase に接続できる状態ではありません。上の表示を確認してください。"); return }
+  const email = $("#em").value.trim().toLowerCase(), password = $("#p").value;
+  const btn = $("#authBtn"); btn.disabled = true; msg("確認中…", true);
+  try{
+    if(mode === "signup") await doSignup(email, password);
+    else await doLogin(email, password);
+  }finally{ btn.disabled = mode === "signup" && signupOpen === false }
+});
+async function doLogin(email, password){
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ await sleep(800); msg(loginErrorText(error, email)); return }
+  msg(""); await enter(data.session.user);
+}
+async function doSignup(email, password){
+  const username = $("#un").value.trim();
+  if(!username){ msg("ユーザー名を入力してください。"); return }
+  if(password.length < 8){ msg("パスワードは8文字以上にしてください。"); return }
+  if(password !== $("#p2").value){ msg("確認用パスワードが一致しません。"); return }
+  const { data, error } = await sb.auth.signUp({ email, password,
+    options:{ data:{ username }, emailRedirectTo: location.origin + location.pathname } });
+  if(error){ msg(signupErrorText(error)); return }
+  if(data.session){ msg(""); await enter(data.session.user); return }
+  if(data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0){
+    msg("このメールアドレスは登録済みです。ログインしてください。"); return;
+  }
+  setMode("login");
+  msg("確認メールを送りました。メール内のリンクを開いてからログインしてください。", true);
+}
+
+/* ログアウト: サーバーに届かなくても必ず画面をログアウト状態にする */
+async function doLogout(){
+  if(!user) return;
+  setStatus("ログアウト中…");
+  try{ await Promise.race([flushAll(), sleep(2000)]) }catch{}
+  try{ await Promise.race([sb.auth.signOut({ scope:"local" }), sleep(3000)]) }catch{}
+  try{
+    for(const k of Object.keys(localStorage)) if(k.startsWith("sb-") && k.endsWith("-auth-token")) localStorage.removeItem(k);
+  }catch{}
+  if(user) leave();
+}
+$("#logoutBtn").addEventListener("click", doLogout);
+
+async function enter(u){
+  user = u;
+  $("#auth").hidden = true; $("#app").hidden = false;
+  for(const id of ["#em","#un","#p","#p2"]) $(id).value = "";
+  curNote = null; selFile = null; q = ""; evEdit = null; bmEdit = null; pySel = null; pyEdit = null;
+  state.profile = { username: (u.user_metadata && u.user_metadata.username) || (u.email || "").split("@")[0], avatar:"" };
+  drawAvatar();
+  setView("notes");
+  await reload();
+  startSync();
+}
+function leave(){
+  stopSync(); stopPyPoll(); user = null;
+  state = emptyState(); dirty.clear();
+  for(const id of ["v-notes","v-cal","v-files","v-calc","v-bm","v-py","v-account"]) $("#"+id).replaceChildren();
+  $("#avatarBtn").replaceChildren();
+  calc.expr = ""; calc.done = false; calc.err = false;
+  showAuth();
+}
+if(sb){
+  sb.auth.onAuthStateChange(ev => { if(ev === "SIGNED_OUT" && user) leave() });
+  sb.auth.getSession().then(({data}) => data.session ? enter(data.session.user) : showAuth());
+} else showAuth();
+
+/* ============ 同期 ============ */
+async function reload(){
+  if(!sb || !user) return;
+  if(loading){ again = true; return }
+  loading = true;
+  try{
+    const [a,b,c,d,e,f] = await Promise.all([
+      sb.from("notes").select("*").order("updated_at",{ascending:false}),
+      sb.from("events").select("*"),
+      sb.from("files").select("*").order("created_at",{ascending:false}),
+      sb.from("bookmarks").select("*").order("created_at",{ascending:false}),
+      sb.from("pyapps").select("*").order("created_at",{ascending:true}),
+      sb.from("profiles").select("*").maybeSingle()
+    ]);
+    if(a.error || b.error || c.error){ setStatus("同期に失敗しました", true); return }
+    const local = new Map(state.notes.map(n => [n.id, n]));
+    state.notes = a.data.map(n => dirty.has(n.id) && local.has(n.id) ? local.get(n.id) : n);
+    for(const id of dirty){ const l = local.get(id); if(l && !state.notes.some(x => x.id===id)) state.notes.push(l) }
+    state.events = b.data; state.files = c.data;
+    state.bookmarks = d.error ? [] : d.data;
+    state.pyapps = e.error ? [] : e.data;
+    if(!f.error){
+      if(f.data) state.profile = { username:f.data.username, avatar:f.data.avatar };
+      else await sb.from("profiles").upsert({ user_id:user.id, username:state.profile.username });
+    }
+    drawAvatar();
+    if(curNote && !state.notes.some(n => n.id===curNote)) curNote = null;
+    if(selFile && !state.files.some(f => f.id===selFile)) selFile = null;
+    if(evEdit && evEdit!=="new" && !state.events.some(e => e.id===evEdit)) evEdit = null;
+    if(bmEdit && bmEdit!=="new" && !state.bookmarks.some(x => x.id===bmEdit)) bmEdit = null;
+    if(pySel && !state.pyapps.some(x => x.id===pySel)) pySel = null;
+    const oldSchema = d.error || e.error || f.error || (b.data.length > 0 && !("memo" in b.data[0]));
+    if(oldSchema) setStatus(SQL_HINT, true);
+    else if(!dirty.size) setStatus("同期済み");
+    rerender();
+  } finally {
+    loading = false;
+    if(again){ again = false; reload() }
+  }
+}
+function typingIn(sec){
+  const a = document.activeElement;
+  return !!a && $(sec).contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName);
+}
+function rerender(){
+  if(view==="notes"){ typingIn("#v-notes") ? renderList() : renderNotes() }
+  else if(view==="cal"){ if(!typingIn("#v-cal")) renderCal() }
+  else if(view==="files"){ renderFiles() }
+  else if(view==="bm"){ if(!typingIn("#v-bm")) renderBm() }
+  else if(view==="py"){ renderPyList() }
+  else if(view==="account"){ if(!typingIn("#v-account")) renderAccount() }
+}
+function startSync(){
+  stopSync();
+  chan = sb.channel("mypage-sync").on("postgres_changes", {event:"*", schema:"public"}, () => {
+    clearTimeout(reloadT); reloadT = setTimeout(reload, 300);
+  }).subscribe();
+  poll = setInterval(reload, 60000);
+}
+function stopSync(){ if(chan){ sb.removeChannel(chan); chan = null } clearInterval(poll); clearTimeout(reloadT) }
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "hidden") flushAll();
+  else if(user) reload();
+});
+addEventListener("online", () => { if(user){ flushAll(); reload() } });
+
+/* ============ ナビ ============ */
+const TITLES = { notes:"メモ", cal:"カレンダー", files:"ファイル", calc:"電卓", bm:"ブックマーク", py:"Pythonアプリ", account:"アカウント" };
+function setView(v){
+  if(view === "py" && v !== "py") stopPyPoll();
+  view = v;
+  for(const b of document.querySelectorAll("#nav button")) b.setAttribute("aria-current", String(b.dataset.v===v));
+  for(const k of Object.keys(TITLES)) $("#v-"+k).hidden = k !== v;
+  $("#pageTitle").textContent = TITLES[v];
+  if(v==="notes") renderNotes();
+  if(v==="cal") renderCal();
+  if(v==="files") renderFiles();
+  if(v==="calc") renderCalc();
+  if(v==="bm") renderBm();
+  if(v==="py") renderPy();
+  if(v==="account") renderAccount();
+}
+$("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if(b) setView(b.dataset.v) });
+
+/* ============ メモ ============ */
+function renderNotes(){
+  const root = $("#v-notes"); root.replaceChildren();
+  const list = h("div",{class:"pl"},
+    h("div",{class:"bar"},
+      h("input",{type:"search",placeholder:"メモを検索",value:q,"aria-label":"メモを検索",oninput:e=>{q=e.target.value;renderList()}}),
+      h("button",{class:"btn primary",type:"button","aria-label":"新しいメモ",onclick:newNote},"新規")),
+    h("div",{class:"items",id:"items"}));
+  root.append(h("div",{class:"split"+(curNote?" open":"")}, list, h("div",{class:"pd",id:"editor"})));
+  renderList(); renderEditor();
+}
+function renderList(){
+  const box = $("#items"); if(!box) return; box.replaceChildren();
+  const k = q.trim().toLowerCase();
+  const notes = state.notes.filter(n => !k || (n.title+"\n"+n.body).toLowerCase().includes(k))
+                           .sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+  if(!notes.length){ box.append(h("div",{class:"empty"}, state.notes.length ? "一致するメモはありません。" : "メモはまだありません。「新規」から作成できます。")); return }
+  for(const n of notes){
+    const first = n.body.split("\n").find(l => l.trim()) || "";
+    box.append(h("button",{class:"item",type:"button","aria-current":String(n.id===curNote),onclick:()=>{curNote=n.id;renderNotes()}},
+      h("b",{}, n.title || first || "無題のメモ"), h("span",{}, fmt(n.updated_at)+"  "+first)));
+  }
+}
+function renderEditor(){
+  const ed = $("#editor"); if(!ed) return; ed.replaceChildren();
+  const n = state.notes.find(x => x.id===curNote);
+  if(!n){ ed.append(h("div",{class:"empty"},"メモを選ぶか、新規作成してください。")); return }
+  ed.append(
+    h("div",{class:"row"},
+      h("button",{class:"btn back",type:"button",onclick:()=>{curNote=null;renderNotes()}},"戻る"),
+      h("span",{class:"muted",style:"flex:1;text-align:right"},"更新 "+fmt(n.updated_at)),
+      h("button",{class:"btn danger",type:"button",onclick:()=>deleteNote(n)},"削除")),
+    h("input",{class:"title",placeholder:"タイトル",value:n.title,"aria-label":"タイトル",oninput:e=>{n.title=e.target.value;touch(n)}}),
+    h("textarea",{placeholder:"ここにメモを書きます",value:n.body,"aria-label":"本文",oninput:e=>{n.body=e.target.value;touch(n)}}));
+}
+function touch(n){ n.updated_at = new Date().toISOString(); queueNote(n); renderList() }
+function queueNote(n){
+  dirty.add(n.id); clearTimeout(saveT[n.id]); setStatus("保存中…");
+  saveT[n.id] = setTimeout(() => flushNote(n.id), 600);
+}
+async function flushNote(id){
+  clearTimeout(saveT[id]);
+  const n = state.notes.find(x => x.id===id); if(!n){ dirty.delete(id); return }
+  const ver = n.updated_at;
+  const { error } = await sb.from("notes").upsert({ id:n.id, title:n.title, body:n.body, updated_at:n.updated_at });
+  if(error){ setStatus("保存に失敗。再試行します", true); saveT[id] = setTimeout(() => flushNote(id), 5000); return }
+  if(n.updated_at === ver) dirty.delete(id);
+  if(!dirty.size) setStatus("同期済み");
+}
+async function flushAll(){ await Promise.all([...dirty].map(flushNote)) }
+function newNote(){
+  const n = { id:uid(), title:"", body:"", updated_at:new Date().toISOString() };
+  state.notes.push(n); curNote = n.id; q = ""; queueNote(n); renderNotes();
+  const t = document.querySelector("#editor .title"); if(t) t.focus();
+}
+async function deleteNote(n){
+  if(!confirm("このメモを削除しますか?")) return;
+  clearTimeout(saveT[n.id]); dirty.delete(n.id);
+  state.notes = state.notes.filter(x => x.id!==n.id); curNote = null; renderNotes();
+  const { error } = await sb.from("notes").delete().eq("id", n.id);
+  if(error){ setStatus("削除に失敗しました", true); reload() }
+}
+
+/* ============ カレンダー(開始・終了・メモ、日またぎ対応) ============ */
+const endOf = e => e.end_date || e.date;
+const overlaps = (e, day) => e.date <= day && day <= endOf(e);
+const byStart = (a, b) => (a.date + (a.time||"")).localeCompare(b.date + (b.time||""));
+function evLabel(e){
+  const end = endOf(e), md = d => { const [, m, dd] = d.split("-"); return `${+m}/${+dd}` };
+  if(end === e.date){
+    if(!e.time && !e.end_time) return "終日";
+    return (e.time || "") + (e.end_time ? "–" + e.end_time : "");
+  }
+  return `${md(e.date)} ${e.time||""} → ${md(end)} ${e.end_time||""}`.replace(/\s+/g," ").trim();
+}
+function renderCal(){
+  const root = $("#v-cal"); root.replaceChildren();
+  const y = cal.getFullYear(), m = cal.getMonth(), today = ymd(new Date());
+  const first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate();
+
+  const grid = h("div",{class:"grid"});
+  "日月火水木金土".split("").forEach(c => grid.append(h("div",{class:"dow"},c)));
+  for(let i=0;i<first;i++) grid.append(h("div",{class:"day blank"}));
+  for(let d=1; d<=days; d++){
+    const date = ymd(new Date(y,m,d)), dow = new Date(y,m,d).getDay();
+    const n = state.events.filter(e => overlaps(e, date)).length;
+    grid.append(h("button",{type:"button",
+      class:"day"+(dow===0?" sun":dow===6?" sat":"")+(date===today?" today":"")+(date===sel?" sel":""),
+      "aria-label":`${m+1}月${d}日 予定${n}件`, onclick:()=>{sel=date;evEdit=null;renderCal()}},
+      h("span",{},String(d)),
+      h("span",{class:"dots"}, ...Array.from({length:Math.min(n,3)}, () => h("i")))));
+  }
+  const move = n => { cal = new Date(y,m+n,1); renderCal() };
+  const left = h("div",{},
+    h("div",{class:"cal-head"},
+      h("button",{class:"btn",type:"button","aria-label":"前の月",onclick:()=>move(-1)},"‹"),
+      h("h2",{},`${y}年${m+1}月`),
+      h("button",{class:"btn",type:"button",onclick:()=>{const t=new Date();cal=new Date(t.getFullYear(),t.getMonth(),1);sel=ymd(t);renderCal()}},"今日"),
+      h("button",{class:"btn",type:"button","aria-label":"次の月",onclick:()=>move(1)},"›")),
+    grid);
+
+  const evs = state.events.filter(e => overlaps(e, sel)).sort(byStart);
+  const label = new Date(sel+"T00:00").toLocaleDateString("ja-JP",{month:"long",day:"numeric",weekday:"short"});
+  const editing = evEdit === "new" ? null : state.events.find(e => e.id === evEdit);
+  const panel = h("div",{class:"panel"}, h("h3",{},label));
+  if(evs.length){
+    panel.append(h("div",{}, ...evs.map(e => h("button",{class:"evrow",type:"button",onclick:()=>{evEdit=e.id;renderCal()}},
+      h("span",{class:"t"}, evLabel(e)),
+      h("span",{class:"n"}, e.title),
+      e.memo ? h("span",{class:"m"}, e.memo) : null))));
+  } else if(!evEdit){
+    panel.append(h("p",{class:"muted",style:"margin:0"},"この日の予定はありません。"));
+  }
+  if(evEdit) panel.append(eventForm(editing));
+  else panel.append(h("button",{class:"btn primary",type:"button",onclick:()=>{evEdit="new";renderCal()}},"予定を追加"));
+  root.append(h("div",{class:"cal"}, left, panel));
+}
+function eventForm(ev){
+  const base = ev || { id:uid(), date:sel, time:"", end_date:sel, end_time:"", title:"", memo:"" };
+  const f = {
+    title: h("input",{placeholder:"タイトル",value:base.title,"aria-label":"タイトル"}),
+    sd: h("input",{type:"date",value:base.date,"aria-label":"開始日"}),
+    st: h("input",{type:"time",value:base.time||"","aria-label":"開始時刻"}),
+    ed: h("input",{type:"date",value:endOf(base),"aria-label":"終了日"}),
+    et: h("input",{type:"time",value:base.end_time||"","aria-label":"終了時刻"}),
+    memo: h("textarea",{rows:"3",placeholder:"メモ(任意)",value:base.memo||"","aria-label":"メモ"})
+  };
+  f.sd.addEventListener("change", () => { if(!f.ed.value || f.ed.value < f.sd.value) f.ed.value = f.sd.value });
+  const err = h("p",{class:"msg",role:"alert"});
+  const fld = (label, input) => h("label",{class:"fld"}, label, input);
+  const save = async () => {
+    const title = f.title.value.trim(); if(!title){ err.textContent = "タイトルを入力してください。"; f.title.focus(); return }
+    const date = f.sd.value; if(!date){ err.textContent = "開始日を入力してください。"; return }
+    const end = f.ed.value || date, st = f.st.value, et = f.et.value;
+    if(end + "T" + (et || "23:59") < date + "T" + (st || "00:00")){ err.textContent = "終了が開始より前になっています。"; return }
+    const obj = { id:base.id, date, time:st, end_date:end, end_time:et, title, memo:f.memo.value };
+    const i = state.events.findIndex(e => e.id === obj.id);
+    if(i >= 0) state.events[i] = { ...state.events[i], ...obj }; else state.events.push(obj);
+    sel = date; cal = new Date(+date.slice(0,4), +date.slice(5,7)-1, 1); evEdit = null; renderCal();
+    const { error } = await sb.from("events").upsert(obj);
+    if(error){ setStatus(needsSql(error) ? SQL_HINT : "予定の保存に失敗しました", true); reload() }
+  };
+  const del = async () => {
+    if(!confirm("この予定を削除しますか?")) return;
+    state.events = state.events.filter(e => e.id !== base.id); evEdit = null; renderCal();
+    const { error } = await sb.from("events").delete().eq("id", base.id);
+    if(error){ setStatus("削除に失敗しました", true); reload() }
+  };
+  return h("div",{class:"form"},
+    fld("タイトル", f.title),
+    h("div",{class:"fgrid"}, fld("開始日", f.sd), fld("開始時刻(任意)", f.st), fld("終了日", f.ed), fld("終了時刻(任意)", f.et)),
+    fld("メモ", f.memo), err,
+    h("div",{class:"frow"},
+      h("button",{class:"btn primary",type:"button",onclick:save},"保存"),
+      h("button",{class:"btn",type:"button",onclick:()=>{evEdit=null;renderCal()}},"キャンセル"),
+      ev ? h("button",{class:"btn danger",type:"button",onclick:del},"削除") : null));
+}
+
+/* ============ ファイル共有 ============ */
+const ALLOWED = { pdf:"application/pdf", tex:"text/plain", mp3:"audio/mpeg", mp4:"video/mp4", jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png" };
+const MAX_MB = 50;
+const extOf = n => (n.split(".").pop() || "").toLowerCase();
+const bucket = () => sb.storage.from("files");
+const wide = () => matchMedia("(min-width:768px)").matches;
+
+async function uploadFiles(list){
+  let ok = 0;
+  for(const f of list){
+    const ext = extOf(f.name);
+    if(!ALLOWED[ext]){ setStatus(`${f.name}: 対応していない形式です`, true); await sleep(1500); continue }
+    if(f.size > MAX_MB*1048576){ setStatus(`${f.name}: ${MAX_MB}MBを超えています`, true); await sleep(1500); continue }
+    setStatus(`アップロード中: ${f.name}`);
+    const path = `${user.id}/${uid()}.${ext}`;
+    const up = await bucket().upload(path, f, { contentType:ALLOWED[ext], upsert:false });
+    if(up.error){ setStatus(`${f.name}: アップロードに失敗`, true); await sleep(1500); continue }
+    const ins = await sb.from("files").insert({ path, name:f.name, size:f.size, mime:ALLOWED[ext] });
+    if(ins.error){ await bucket().remove([path]); setStatus(`${f.name}: 登録に失敗`, true); await sleep(1500); continue }
+    ok++;
+  }
+  if(ok) setStatus("アップロード完了");
+  await reload();
+}
+async function signed(f, opts, sec = 3600){
+  const { data, error } = await bucket().createSignedUrl(f.path, sec, opts);
+  if(error) throw error;
+  return data.signedUrl;
+}
+async function renameFile(f){
+  const ext = extOf(f.name);
+  let nn = prompt("新しいファイル名", f.name);
+  if(nn == null) return;
+  nn = nn.trim().replace(/[\\/]/g, "_");
+  if(!nn) return;
+  if(!nn.includes(".")) nn += "." + ext;
+  const ne = extOf(nn), same = ne === ext || (["jpg","jpeg"].includes(ne) && ["jpg","jpeg"].includes(ext));
+  if(!same){ setStatus(`拡張子は .${ext} のまま変更できません`, true); return }
+  if(nn === f.name) return;
+  const old = f.name; f.name = nn; renderFiles();
+  const { error } = await sb.from("files").update({ name:nn }).eq("id", f.id);
+  if(error){ f.name = old; renderFiles(); setStatus("名前を変更できませんでした", true) } else setStatus("名前を変更しました");
+}
+function renderFiles(){
+  const root = $("#v-files"); root.replaceChildren();
+  const input = h("input",{type:"file",multiple:true,hidden:true,accept:".pdf,.tex,.mp3,.mp4,.jpg,.jpeg,.png",
+    onchange:e => { const fl = [...e.target.files]; e.target.value = ""; uploadFiles(fl) }});
+  const list = h("div",{class:"pl"},
+    h("div",{class:"bar"}, h("button",{class:"btn primary",type:"button",style:"flex:1",onclick:()=>input.click()},"ファイルを追加"), input),
+    h("p",{class:"muted",style:"margin:0 16px 8px"},`PDF・TeX・MP3・MP4・JPG・PNG(1ファイル${MAX_MB}MBまで)`),
+    h("div",{class:"items",id:"fitems"}));
+  root.append(h("div",{class:"split"+(selFile?" open":"")}, list, h("div",{class:"pd",id:"fdetail"})));
+  renderFileList(); renderFileDetail();
+}
+function renderFileList(){
+  const box = $("#fitems"); if(!box) return; box.replaceChildren();
+  if(!state.files.length){ box.append(h("div",{class:"empty"},"ファイルはまだありません。どの端末からでも追加でき、すべての端末で開けます。")); return }
+  for(const f of state.files){
+    box.append(h("button",{class:"item",type:"button","aria-current":String(f.id===selFile),onclick:()=>{selFile=f.id;renderFiles()}},
+      h("b",{}, f.name),
+      h("span",{}, `${extOf(f.name).toUpperCase()}  ${fmtSize(f.size)}  ${fmt(f.created_at)}`)));
+  }
+}
+async function renderFileDetail(){
+  const box = $("#fdetail"); if(!box) return; box.replaceChildren();
+  const f = state.files.find(x => x.id===selFile);
+  if(!f){ box.append(h("div",{class:"empty"},"ファイルを選ぶと、ここにプレビューが表示されます。")); return }
+  const ext = extOf(f.name), pv = h("div",{class:"pv"}, h("p",{class:"muted"},"読み込み中…"));
+  const tell = t => setStatus(t);
+  box.append(
+    h("div",{class:"row"},
+      h("button",{class:"btn back",type:"button",onclick:()=>{selFile=null;renderFiles()}},"戻る"),
+      h("strong",{style:"flex:1;word-break:break-all"}, f.name)),
+    h("div",{class:"muted"}, `${fmtSize(f.size)}  ${fmt(f.created_at)}`),
+    h("div",{class:"row"},
+      h("button",{class:"btn",type:"button",onclick:async()=>{try{window.open(await signed(f),"_blank","noopener")}catch{tell("開けませんでした")}}},"開く"),
+      h("button",{class:"btn",type:"button",onclick:async()=>{
+        try{ const a = h("a",{href:await signed(f,{download:f.name})}); document.body.append(a); a.click(); a.remove() }
+        catch{ tell("ダウンロードに失敗しました") }
+      }},"ダウンロード"),
+      h("button",{class:"btn",type:"button",onclick:()=>renameFile(f)},"名前変更"),
+      h("button",{class:"btn",type:"button",onclick:async()=>{
+        try{
+          const url = await signed(f, undefined, 7*24*3600);
+          try{ await navigator.clipboard.writeText(url); tell("共有リンク(7日間有効)をコピーしました") }
+          catch{ prompt("共有リンク(7日間有効)。コピーして使ってください", url) }
+        }catch{ tell("リンクを作れませんでした") }
+      }},"共有リンク"),
+      h("button",{class:"btn danger",type:"button",onclick:async()=>{
+        if(!confirm("このファイルを削除しますか?")) return;
+        const r1 = await bucket().remove([f.path]);
+        if(r1.error){ tell("削除に失敗しました") ; return }
+        await sb.from("files").delete().eq("id", f.id);
+        selFile = null; await reload();
+      }},"削除")),
+    pv);
+  try{
+    const url = await signed(f);
+    if(selFile !== f.id) return;
+    pv.replaceChildren();
+    if(ext==="jpg"||ext==="jpeg"||ext==="png") pv.append(h("img",{src:url,alt:f.name}));
+    else if(ext==="mp3") pv.append(h("audio",{src:url,controls:true,preload:"metadata"}));
+    else if(ext==="mp4") pv.append(h("video",{src:url,controls:true,playsinline:true,preload:"metadata"}));
+    else if(ext==="pdf"){
+      pv.append(wide() ? h("iframe",{src:url,title:f.name}) : h("p",{class:"muted"},"「開く」でPDFを表示できます。"));
+    } else if(ext==="tex"){
+      if(f.size > 300*1024) pv.append(h("p",{class:"muted"},"大きいため、プレビューは省略しました。「開く」で確認できます。"));
+      else { const t = await (await fetch(url)).text(); if(selFile !== f.id) return; pv.append(h("pre",{},t)) }
+    }
+  }catch{ pv.replaceChildren(h("p",{class:"muted"},"プレビューを読み込めませんでした。")) }
+}
+// PCではドラッグ&ドロップでも追加できる
+const filesSec = $("#v-files");
+["dragover","dragenter"].forEach(ev => filesSec.addEventListener(ev, e => { e.preventDefault(); filesSec.classList.add("drop") }));
+["dragleave","drop"].forEach(ev => filesSec.addEventListener(ev, e => { e.preventDefault(); filesSec.classList.remove("drop") }));
+filesSec.addEventListener("drop", e => { if(user && e.dataTransfer.files.length) uploadFiles([...e.dataTransfer.files]) });
+
+/* ============ 電卓 ============ */
+const calc = { expr:"", hist:"", show:"", done:false, err:false };
+const OPS = "+−×÷";
+function evalExpr(src){
+  let s = src.replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-");
+  const open = (s.match(/\(/g)||[]).length - (s.match(/\)/g)||[]).length;
+  if(open > 0) s += ")".repeat(open);
+  let i = 0;
+  const peek = () => s[i];
+  function expr(){ let v = term(); while(peek()==="+"||peek()==="-"){ const o = s[i++]; const r = term(); v = o==="+" ? v+r : v-r } return v }
+  function term(){ let v = unary(); while(peek()==="*"||peek()==="/"){ const o = s[i++]; const r = unary(); v = o==="*" ? v*r : v/r } return v }
+  function unary(){ if(peek()==="-"){ i++; return -unary() } if(peek()==="+"){ i++; return unary() } return post() }
+  function post(){ let v = prim(); while(peek()==="%"){ i++; v /= 100 } return v }
+  function prim(){
+    if(peek()==="("){ i++; const v = expr(); if(peek()!==")") throw 0; i++; return v }
+    const m = /^(\d+\.?\d*|\.\d+)/.exec(s.slice(i)); if(!m) throw 0;
+    i += m[0].length; return parseFloat(m[0]);
+  }
+  const v = expr(); if(i !== s.length) throw 0; return v;
+}
+const tryEval = s => { try{ return evalExpr(s) }catch{ return null } };
+const normNum = n => String(parseFloat(n.toPrecision(12)));
+function showNum(n){
+  if(!isFinite(n)) return "エラー";
+  const s = normNum(n); if(/e/i.test(s)) return s;
+  const [i, d] = s.split("."), neg = i.startsWith("-"), ii = (neg ? i.slice(1) : i).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (neg ? "-" : "") + ii + (d ? "." + d : "");
+}
+function calcPress(k){
+  let expr = calc.expr; const last = expr.slice(-1);
+  if(k !== "=") calc.err = false;
+  if(/^\d$/.test(k) || k === "."){
+    if(calc.done){ expr = ""; calc.done = false }
+    const cur = expr.slice(-1);
+    if(k === "."){
+      const run = /[\d.]*$/.exec(expr)[0]; if(run.includes(".")) return;
+      if(run === ""){ if(cur===")" || cur==="%") expr += "×"; expr += "0" }
+    } else if(cur===")" || cur==="%") expr += "×";
+    expr += k;
+  } else if(OPS.includes(k)){
+    calc.done = false;
+    if(OPS.includes(last)){
+      const prev = expr.slice(-2,-1);
+      if((prev === "" || prev === "(") && k !== "−") return;
+      expr = expr.slice(0,-1) + k;
+    } else if(last === "(" || expr === ""){ if(k === "−") expr += k }
+    else expr += k;
+  } else if(k === "("){
+    if(calc.done){ expr = ""; calc.done = false }
+    else if(/[\d.)%]$/.test(expr)) expr += "×";
+    expr += "(";
+  } else if(k === ")"){
+    const open = (expr.match(/\(/g)||[]).length - (expr.match(/\)/g)||[]).length;
+    if(open > 0 && /[\d.)%]$/.test(expr)) expr += ")";
+  } else if(k === "%"){
+    if(/[\d.)%]$/.test(expr)){ expr += "%"; calc.done = false }
+  } else if(k === "⌫"){ expr = expr.slice(0,-1); calc.done = false }
+  else if(k === "AC"){ expr = ""; calc.done = false; calc.hist = "" }
+  else if(k === "="){
+    if(!expr) return;
+    const v = tryEval(expr);
+    if(v === null || !isFinite(v)){ calc.err = true }
+    else {
+      calc.err = false; calc.hist = expr + " =";
+      calc.show = showNum(v);
+      const n = normNum(v);
+      expr = /e/i.test(n) ? "" : n.replace("-", "−");
+      calc.done = true;
+    }
+  }
+  calc.expr = expr; calcUpdate();
+}
+function calcUpdate(){
+  const a = $("#calcExpr"), b = $("#calcRes"); if(!a) return;
+  if(calc.err){ a.textContent = calc.expr; b.textContent = "エラー"; return }
+  if(calc.done){ a.textContent = calc.hist; b.textContent = calc.show; return }
+  a.textContent = calc.expr;
+  const v = /[+−×÷%()]/.test(calc.expr.slice(1)) ? tryEval(calc.expr) : null;
+  b.textContent = v !== null && isFinite(v) ? showNum(v) : (calc.expr || "0");
+}
+function renderCalc(){
+  const root = $("#v-calc"); root.replaceChildren();
+  const keys = [["AC","⌫","(",")"],["7","8","9","÷"],["4","5","6","×"],["1","2","3","−"],["0",".","%","+"]];
+  const grid = h("div",{class:"ckeys"});
+  for(const row of keys) for(const k of row){
+    grid.append(h("button",{type:"button",class:"ck"+(OPS.includes(k)?" op":"")+((k==="AC"||k==="⌫")?" fn":""),
+      "aria-label":k==="⌫"?"1文字消す":k==="AC"?"すべて消す":k, onclick:()=>calcPress(k)}, k));
+  }
+  grid.append(h("button",{type:"button",class:"ck eq",onclick:()=>calcPress("=")},"="));
+  root.append(h("div",{class:"calc"}, h("div",{class:"cdisp"}, h("div",{id:"calcExpr",class:"cexpr"}), h("div",{id:"calcRes",class:"cres"})), grid));
+  calcUpdate();
+}
+document.addEventListener("keydown", e => {
+  if(view !== "calc" || !user || e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = document.activeElement && document.activeElement.tagName;
+  if(t === "INPUT" || t === "TEXTAREA") return;
+  const map = { "*":"×", "/":"÷", "-":"−", "Enter":"=", "Backspace":"⌫", "Escape":"AC", "c":"AC", "C":"AC" };
+  const k = map[e.key] || e.key;
+  if(/^[0-9.+−×÷()%=]$/.test(k) || k === "⌫" || k === "AC"){ e.preventDefault(); calcPress(k) }
+});
+
+/* ============ ブックマーク ============ */
+const hostOf = u => { try{ return new URL(u).hostname.replace(/^www\./,"") }catch{ return u } };
+function normalizeUrl(s){
+  s = s.trim(); if(!s) return null;
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = "https://" + s;
+  try{ const u = new URL(s); return /^https?:$/.test(u.protocol) ? u.href : null }catch{ return null }
+}
+function renderBm(){
+  const root = $("#v-bm"); root.replaceChildren();
+  const editing = bmEdit === "new" ? null : state.bookmarks.find(b => b.id === bmEdit);
+  root.append(h("div",{class:"bm"},
+    h("div",{class:"bar",style:"padding:0"},
+      h("input",{type:"search",placeholder:"ブックマークを検索",value:bmQ,"aria-label":"検索",oninput:e=>{bmQ=e.target.value;renderBmList()}}),
+      h("button",{class:"btn primary",type:"button",onclick:()=>{bmEdit="new";renderBm()}},"追加")),
+    bmEdit ? bmForm(editing) : null,
+    h("div",{id:"bmlist"})));
+  renderBmList();
+}
+function renderBmList(){
+  const box = $("#bmlist"); if(!box) return; box.replaceChildren();
+  const k = bmQ.trim().toLowerCase();
+  const list = state.bookmarks.filter(b => !k || (b.title+" "+b.url+" "+b.tag).toLowerCase().includes(k));
+  if(!list.length){ box.append(h("div",{class:"empty"}, state.bookmarks.length ? "一致するブックマークはありません。" : "ブックマークはまだありません。「追加」から登録できます。")); return }
+  const groups = new Map();
+  for(const b of list){ const g = b.tag || ""; if(!groups.has(g)) groups.set(g, []); groups.get(g).push(b) }
+  const names = [...groups.keys()].sort((a,b) => a==="" ? 1 : b==="" ? -1 : a.localeCompare(b,"ja"));
+  for(const g of names){
+    if(names.length > 1 || g) box.append(h("h3",{}, g || "未分類"));
+    for(const b of groups.get(g)){
+      box.append(h("div",{class:"bmi"},
+        h("a",{class:"bml",href:b.url,target:"_blank",rel:"noopener noreferrer"},
+          h("b",{}, b.title || hostOf(b.url)), h("span",{}, b.url.replace(/^https?:\/\//,""))),
+        h("button",{class:"btn",type:"button",onclick:()=>{bmEdit=b.id;renderBm();window.scrollTo(0,0);$("#v-bm").scrollTop=0}},"編集")));
+    }
+  }
+}
+function bmForm(b){
+  const base = b || { id:uid(), url:"", title:"", tag:"" };
+  const f = {
+    url: h("input",{placeholder:"URL(例: example.com)",value:base.url,inputmode:"url",autocapitalize:"none",autocorrect:"off",spellcheck:"false","aria-label":"URL"}),
+    title: h("input",{placeholder:"タイトル(空欄ならサイト名)",value:base.title,"aria-label":"タイトル"}),
+    tag: h("input",{placeholder:"グループ(任意)",value:base.tag,list:"bmgroups","aria-label":"グループ"})
+  };
+  const groups = [...new Set(state.bookmarks.map(x => x.tag).filter(Boolean))];
+  const err = h("p",{class:"msg",role:"alert"});
+  const save = async () => {
+    const url = normalizeUrl(f.url.value);
+    if(!url){ err.textContent = "http または https のURLを入力してください。"; f.url.focus(); return }
+    const obj = { id:base.id, url, title:f.title.value.trim() || hostOf(url), tag:f.tag.value.trim() };
+    const i = state.bookmarks.findIndex(x => x.id === obj.id);
+    if(i >= 0) state.bookmarks[i] = { ...state.bookmarks[i], ...obj };
+    else state.bookmarks.unshift({ ...obj, created_at:new Date().toISOString() });
+    bmEdit = null; renderBm();
+    const { error } = await sb.from("bookmarks").upsert(obj);
+    if(error){ setStatus(needsSql(error) ? SQL_HINT : "ブックマークの保存に失敗しました", true); reload() }
+  };
+  const del = async () => {
+    if(!confirm("このブックマークを削除しますか?")) return;
+    state.bookmarks = state.bookmarks.filter(x => x.id !== base.id); bmEdit = null; renderBm();
+    const { error } = await sb.from("bookmarks").delete().eq("id", base.id);
+    if(error){ setStatus("削除に失敗しました", true); reload() }
+  };
+  [f.url, f.title, f.tag].forEach(inp => inp.addEventListener("keydown", e => { if(e.key==="Enter" && !e.isComposing) save() }));
+  return h("div",{class:"panel"},
+    h("div",{class:"form"}, f.url, f.title, f.tag,
+      h("datalist",{id:"bmgroups"}, ...groups.map(g => h("option",{value:g}))),
+      err,
+      h("div",{class:"frow"},
+        h("button",{class:"btn primary",type:"button",onclick:save},"保存"),
+        h("button",{class:"btn",type:"button",onclick:()=>{bmEdit=null;renderBm()}},"キャンセル"),
+        b ? h("button",{class:"btn danger",type:"button",onclick:del},"削除") : null)));
+}
+
+/* ============ アカウント設定(アイコン・ユーザー名・パスワード) ============ */
+const initialOf = s => ([...(s || "?")][0] || "?").toUpperCase();
+function drawAvatar(){
+  const b = $("#avatarBtn"); if(!b) return;
+  b.replaceChildren();
+  const p = state.profile;
+  if(p.avatar) b.append(h("img",{src:p.avatar,alt:""})); else b.textContent = initialOf(p.username);
+}
+$("#avatarBtn").addEventListener("click", () => { if(user) setView("account") });
+
+function resizeImage(file, size = 128){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas"); c.width = c.height = size;
+      const s = Math.min(img.width, img.height);
+      c.getContext("2d").drawImage(img, (img.width-s)/2, (img.height-s)/2, s, s, 0, 0, size, size);
+      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("load")) };
+    img.src = url;
+  });
+}
+async function saveProfile(p){
+  const before = state.profile;
+  state.profile = { ...before, ...p }; drawAvatar();
+  const { error } = await sb.from("profiles").upsert({
+    user_id:user.id, username:state.profile.username, avatar:state.profile.avatar, updated_at:new Date().toISOString() });
+  if(error){
+    state.profile = before; drawAvatar();
+    setStatus(needsSql(error) ? SQL_HINT : "保存に失敗しました", true); return false;
+  }
+  setStatus("保存しました"); return true;
+}
+function renderAccount(){
+  const root = $("#v-account"); root.replaceChildren();
+  const p = state.profile;
+  const av = h("div",{class:"avatar big"});
+  if(p.avatar) av.append(h("img",{src:p.avatar,alt:"アイコン"})); else av.textContent = initialOf(p.username);
+  const file = h("input",{type:"file",accept:"image/jpeg,image/png,image/webp",hidden:true,onchange:async e => {
+    const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+    try{ const data = await resizeImage(f); if(await saveProfile({ avatar:data })) renderAccount() }
+    catch{ setStatus("画像を読み込めませんでした", true) }
+  }});
+  const nameIn = h("input",{value:p.username,placeholder:"ユーザー名","aria-label":"ユーザー名"});
+  const pw1 = h("input",{type:"password",placeholder:"新しいパスワード(8文字以上)",autocomplete:"new-password","aria-label":"新しいパスワード"});
+  const pw2 = h("input",{type:"password",placeholder:"新しいパスワード(確認)",autocomplete:"new-password","aria-label":"新しいパスワード(確認)"});
+  const pwMsg = h("p",{class:"msg",role:"alert"});
+  root.append(h("div",{class:"acct"},
+    h("div",{class:"panel"}, h("h3",{},"アイコン"),
+      h("div",{class:"row"}, av,
+        h("button",{class:"btn",type:"button",onclick:()=>file.click()},"画像を選ぶ"),
+        p.avatar ? h("button",{class:"btn danger",type:"button",onclick:async()=>{ if(await saveProfile({ avatar:"" })) renderAccount() }},"削除") : null),
+      file),
+    h("div",{class:"panel"}, h("h3",{},"ユーザー名"), nameIn,
+      h("button",{class:"btn primary",type:"button",onclick:async()=>{
+        const n = nameIn.value.trim(); if(!n){ setStatus("ユーザー名を入力してください", true); return }
+        if(await saveProfile({ username:n })) renderAccount();
+      }},"保存")),
+    h("div",{class:"panel"}, h("h3",{},"メールアドレス"), h("p",{style:"margin:0;word-break:break-all"}, user.email || "")),
+    h("div",{class:"panel"}, h("h3",{},"パスワードの変更"), pw1, pw2, pwMsg,
+      h("button",{class:"btn",type:"button",onclick:async()=>{
+        pwMsg.className = "msg";
+        if(pw1.value.length < 8){ pwMsg.textContent = "パスワードは8文字以上にしてください。"; return }
+        if(pw1.value !== pw2.value){ pwMsg.textContent = "確認用パスワードが一致しません。"; return }
+        const { error } = await sb.auth.updateUser({ password:pw1.value });
+        if(error){
+          pwMsg.textContent = /reauth|recent/i.test(error.message)
+            ? "安全のため、一度ログアウトして再ログインしてからお試しください。" : "変更できませんでした: " + error.message;
+          return;
+        }
+        pw1.value = ""; pw2.value = ""; pwMsg.className = "msg ok"; pwMsg.textContent = "パスワードを変更しました。";
+      }},"変更する")),
+    h("div",{class:"panel"}, h("button",{class:"btn danger",type:"button",onclick:doLogout},"ログアウト"))));
+}
+
+/* ============ Pythonアプリ(登録して、枠の中で表示・起動・停止) ============ */
+const LS = {
+  get(k, d){ try{ return localStorage.getItem(k) ?? d }catch{ return d } },
+  set(k, v){ try{ localStorage.setItem(k, v) }catch{} }
+};
+const ag = { url: LS.get("mypage_agent_url", "http://127.0.0.1:8765"), token: LS.get("mypage_agent_token", "") };
+let pySel = null, pyEdit = null, pyShow = false, pyPoll = null;
+let pyStat = { ok:false, running:{}, msg:"確認中…" };
+
+async function agent(path, method = "GET", body){
+  const r = await fetch(ag.url.replace(/\/+$/,"") + path, {
+    method, headers:{ "X-Token":ag.token, ...(body ? {"Content-Type":"application/json"} : {}) },
+    body: body ? JSON.stringify(body) : undefined });
+  let j = {}; try{ j = await r.json() }catch{}
+  if(!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+  return j;
+}
+const agentErr = e => e instanceof TypeError
+  ? "ランチャーに接続できません。PCで pyapp_launcher.py を起動し、PCのブラウザで開いてください。"
+  : e.message;
+async function pyRefresh(){
+  if(!user) return;
+  if(!ag.token) pyStat = { ok:false, running:{}, msg:"ランチャー未設定(下の「ランチャー設定」でトークンを入力)" };
+  else{
+    try{ const j = await agent("/status"); pyStat = { ok:true, running:j.running || {}, msg:"ランチャー接続中" } }
+    catch(e){ pyStat = { ok:false, running:{}, msg:agentErr(e) } }
+  }
+  if(view === "py"){ renderPyList(); renderPyBar() }
+}
+function startPyPoll(){ stopPyPoll(); pyRefresh(); pyPoll = setInterval(pyRefresh, 5000) }
+function stopPyPoll(){ clearInterval(pyPoll); pyPoll = null }
+
+function frameBlocked(url){
+  return location.protocol === "https:" && /^http:\/\//i.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url);
+}
+function renderPy(){
+  const root = $("#v-py"); root.replaceChildren();
+  const list = h("div",{class:"pl"},
+    h("div",{class:"bar"}, h("button",{class:"btn primary",type:"button",style:"flex:1",onclick:()=>{pySel=null;pyEdit="new";renderPy()}},"アプリを登録")),
+    h("p",{id:"pystat",class:"muted",style:"margin:0 16px 8px"}),
+    h("div",{class:"items",id:"pyitems"}));
+  root.append(h("div",{class:"split"+((pySel || pyEdit) ? " open" : "")}, list, h("div",{class:"pd",id:"pydetail"})));
+  renderPyList(); renderPyDetail(); startPyPoll();
+}
+function renderPyList(){
+  const st = $("#pystat"); if(st) st.textContent = pyStat.msg;
+  const box = $("#pyitems"); if(!box) return; box.replaceChildren();
+  if(!state.pyapps.length){ box.append(h("div",{class:"empty"},"登録したアプリはまだありません。「アプリを登録」から追加できます。")); return }
+  for(const a of state.pyapps){
+    const on = !!pyStat.running[a.name];
+    box.append(h("button",{class:"item",type:"button","aria-current":String(a.id===pySel),onclick:()=>{pySel=a.id;pyEdit=null;pyShow=false;renderPy()}},
+      h("b",{}, a.name),
+      h("span",{}, h("i",{class:"dot "+(on?"on":"off")}), (on ? "稼働中" : pyStat.ok ? "停止中" : "状態不明") + "  " + (a.url || ""))));
+  }
+}
+function renderPyBar(){
+  const bar = $("#pybar"); if(!bar) return;
+  const a = state.pyapps.find(x => x.id === pySel); if(!a) return;
+  const on = !!pyStat.running[a.name];
+  bar.replaceChildren(h("i",{class:"dot "+(on?"on":"off")}), on ? "稼働中" : pyStat.ok ? "停止中" : "状態不明(ランチャー未接続)");
+}
+async function pyAction(a, act){
+  setStatus(act === "start" ? "起動中…" : "停止中…");
+  try{
+    await agent("/" + act, "POST", { name:a.name });
+    setStatus(act === "start" ? "起動しました" : "停止しました");
+    if(act === "start"){ await sleep(1500); pyShow = true } else pyShow = false;
+    await pyRefresh(); renderPyDetail();
+  }catch(e){ setStatus(agentErr(e), true) }
+}
+function agentSettings(){
+  const u = h("input",{value:ag.url,placeholder:"http://127.0.0.1:8765","aria-label":"ランチャーのアドレス"});
+  const t = h("input",{type:"password",value:ag.token,placeholder:"トークン","aria-label":"トークン",autocomplete:"off"});
+  return h("details",{class:"agent"},
+    h("summary",{},"ランチャー設定(この端末だけに保存)"),
+    h("div",{class:"form",style:"margin-top:8px"}, u, t,
+      h("p",{class:"muted",style:"margin:0"},"pyapp_launcher.py を起動すると表示されるトークンを貼り付けます。起動・停止は、ランチャーを動かしているPCのブラウザからだけ使えます。"),
+      h("button",{class:"btn",type:"button",onclick:()=>{
+        ag.url = u.value.trim() || "http://127.0.0.1:8765"; ag.token = t.value.trim();
+        LS.set("mypage_agent_url", ag.url); LS.set("mypage_agent_token", ag.token);
+        setStatus("保存しました"); pyRefresh();
+      }},"保存して接続確認")));
+}
+function renderPyDetail(){
+  const box = $("#pydetail"); if(!box) return; box.replaceChildren();
+  if(pyEdit){ box.append(pyForm(pyEdit === "new" ? null : state.pyapps.find(x => x.id === pyEdit))); return }
+  const a = state.pyapps.find(x => x.id === pySel);
+  if(!a){
+    box.append(h("div",{class:"empty"},"アプリを選ぶと、ここに表示・起動・停止の操作が出ます。"), agentSettings());
+    return;
+  }
+  const url = a.url ? normalizeUrl(a.url) : null;
+  let area;
+  if(!url) area = h("p",{class:"muted"},"アプリのアドレスが未設定です。「編集」から入力してください。");
+  else if(frameBlocked(url)) area = h("p",{class:"muted"},"http のアドレスは、https のこのページの中には表示できません。「新しいタブで開く」を使ってください。");
+  else if(!pyShow) area = h("p",{class:"muted"},"「起動」または「枠に表示」で、ここにアプリが表示されます。");
+  else area = h("iframe",{class:"frame",src:url,title:a.name,referrerpolicy:"no-referrer",
+    sandbox:"allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"});
+  box.append(
+    h("div",{class:"row"},
+      h("button",{class:"btn back",type:"button",onclick:()=>{pySel=null;renderPy()}},"戻る"),
+      h("strong",{style:"flex:1;word-break:break-all"}, a.name)),
+    h("div",{id:"pybar",class:"muted"}),
+    h("div",{class:"row"},
+      h("button",{class:"btn primary",type:"button",onclick:()=>pyAction(a,"start")},"起動"),
+      h("button",{class:"btn",type:"button",onclick:()=>pyAction(a,"stop")},"停止"),
+      h("button",{class:"btn",type:"button",onclick:()=>{pyShow=true;renderPyDetail()}},"枠に表示"),
+      url ? h("button",{class:"btn",type:"button",onclick:()=>window.open(url,"_blank","noopener")},"新しいタブで開く") : null,
+      h("button",{class:"btn",type:"button",onclick:()=>{pyEdit=a.id;renderPyDetail()}},"編集")),
+    a.memo ? h("p",{class:"muted",style:"margin:0;white-space:pre-wrap"}, a.memo) : null,
+    area, agentSettings());
+  renderPyBar();
+}
+function pyForm(a){
+  const base = a || { id:uid(), name:"", url:"", memo:"" };
+  const f = {
+    name: h("input",{placeholder:"登録名(ランチャーに登録した名前と同じ)",value:base.name,"aria-label":"登録名"}),
+    url: h("input",{placeholder:"アプリのアドレス(例: http://localhost:5000)",value:base.url,inputmode:"url",autocapitalize:"none",autocorrect:"off",spellcheck:"false","aria-label":"アドレス"}),
+    memo: h("textarea",{rows:"3",placeholder:"メモ(任意)",value:base.memo,"aria-label":"メモ"})
+  };
+  const err = h("p",{class:"msg",role:"alert"});
+  const save = async () => {
+    const name = f.name.value.trim(); if(!name){ err.textContent = "登録名を入力してください。"; return }
+    let url = ""; if(f.url.value.trim()){ url = normalizeUrl(f.url.value) || ""; if(!url){ err.textContent = "アドレスは http または https で入力してください。"; return } }
+    const obj = { id:base.id, name, url, memo:f.memo.value };
+    const i = state.pyapps.findIndex(x => x.id === obj.id);
+    if(i >= 0) state.pyapps[i] = { ...state.pyapps[i], ...obj }; else state.pyapps.push({ ...obj, created_at:new Date().toISOString() });
+    pySel = obj.id; pyEdit = null; pyShow = false; renderPy();
+    const { error } = await sb.from("pyapps").upsert(obj);
+    if(error){ setStatus(needsSql(error) ? SQL_HINT : "保存に失敗しました", true); reload() }
+  };
+  const del = async () => {
+    if(!confirm("この登録を削除しますか?(PC上のアプリのファイルは消えません)")) return;
+    state.pyapps = state.pyapps.filter(x => x.id !== base.id); pySel = null; pyEdit = null; renderPy();
+    const { error } = await sb.from("pyapps").delete().eq("id", base.id);
+    if(error){ setStatus("削除に失敗しました", true); reload() }
+  };
+  return h("div",{class:"form"},
+    h("div",{class:"row"}, h("button",{class:"btn back",type:"button",onclick:()=>{pyEdit=null;renderPy()}},"戻る"),
+      h("strong",{style:"flex:1"}, a ? "登録内容を編集" : "アプリを登録")),
+    f.name, f.url, f.memo, err,
+    h("div",{class:"frow"},
+      h("button",{class:"btn primary",type:"button",onclick:save},"保存"),
+      h("button",{class:"btn",type:"button",onclick:()=>{pyEdit=null;renderPy()}},"キャンセル"),
+      a ? h("button",{class:"btn danger",type:"button",onclick:del},"削除") : null));
+}
+</script>
+</body>
+</html>
